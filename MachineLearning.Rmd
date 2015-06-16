@@ -1,0 +1,94 @@
+---
+title: "Machine Learning"
+author: "Satish Kumar Barnala"
+date: "Saturday, June 13, 2015"
+output: html_document
+---
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of this machine learning exercise is to predict the manner in which the participants did the exercise-that is, to predict the "classe" variable found in the training set. The prediction model will then be used to predict twenty different test cases, as provided in the testing dataset.
+
+The training and testing datasets used in the analysis are:
+
+Training dataset: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+Testing dataset: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+## Read the data
+```{r}
+library(ggplot2);library(caret); library(kernlab);library(randomForest)
+traindf <- read.csv("pml-training.csv", header = TRUE, na.strings = c("NA", ""))
+testdf <- read.csv("pml-testing.csv", header = TRUE, na.strings = c("NA", ""))
+
+dim(traindf)
+```
+## Remove columns havinng missing data 
+
+- We will remove the columns that seem to be insignificant
+- Remove columns having morethan 95% 'NA' or ''
+- Remove columns having near zero variance
+
+```{r}
+traindf <- subset(traindf, select=-c(1:7))
+#testdf <- subset(testdf, select=-c(1:7))
+
+# Threshold is 95% off total rowns
+thresh <- 0.95 * dim(traindf)[1]
+
+# Remove columns that have  morethan 95% 'NA' or ''
+Collogi <- !apply(traindf, 2, function(x) sum(is.na(x)) > thresh || sum(x=="") > thresh)
+traindf <- traindf[, Collogi]
+dim(traindf)
+
+# Remove columns having near zero variance
+nzvlogi <- nearZeroVar(traindf, saveMetrics = TRUE)
+traindf <- traindf[ , nzvlogi$nzv==FALSE] 
+dim(traindf)
+
+```
+## Data Modeling
+- Split the training data in to training and validate data sets
+- Apply Random Forest model
+```{r}
+
+set.seed(98765)
+
+indxTrain <- createDataPartition(y = traindf$classe, p = 0.7, list = FALSE)
+traindf1 <- traindf[indxTrain, ]
+validdf <- traindf[-indxTrain, ]
+
+modelrf <- randomForest(classe~., data=traindf1, importance=TRUE)
+
+```
+## Cross Validation and Out-of-Sample Error Estimate
+
+```{r}
+validdf_pred <- predict(modelrf, newdata=validdf)
+# Confusion Matrix
+cfm <- confusionMatrix(validdf_pred, validdf$classe)
+cfm
+```
+
+- We achieved 99.41% accuracy with this model
+- Out of sample error is 0.59%
+
+## Plot the Important variables with MeanDecreaseAccuracy and MeanDecreaseGini
+```{r}
+varImpPlot(modelrf, n.var=15, main="Top 15 Variables Impacting classe")
+
+```
+
+## Applying the model on test data
+
+```{r}
+predict(modelrf, newdata=testdf)
+```
+## End of report
+
+
+
+
+
+
+
